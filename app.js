@@ -78,10 +78,13 @@ canvas.addEventListener("click", (e) => {
 function drawPlaneIcon() {
   ctx.save();
   ctx.translate(plane.x, plane.y);
-  ctx.rotate(plane.heading);
+  // Alinear la “nariz” del dibujo con el heading real
+const DRAW_ROT_OFFSET = Math.PI / 2;  // 90° (si quedara al revés, pon -Math.PI/2)
+ctx.rotate(plane.heading + DRAW_ROT_OFFSET);
 
-  // Tamaño
-  const s = 1.0;
+// Tamaño x2
+const s = 2.0;
+
 
   // Sombra suave para que destaque
   ctx.beginPath();
