@@ -10,18 +10,18 @@ bg.src = "assets/airport.png";
 const plane = {
   x: 260,
   y: 1400,
-  heading: -Math.PI / 2,
+  heading: -Math.PI / 2, // nariz hacia arriba (norte en tu mapa)
   speed: 0,
 
-  maxFwd: 220,     // velocidad max hacia delante (px/s)
-  maxRev: 80,      // marcha atrás suave
-  accel: 420,      // aceleración (px/s^2)
-  brake: 900,      // frenada fuerte (px/s^2)
-  drag: 0.92,      // fricción natural por frame (aprox)
-  turnRate: 2.6    // rad/s a alta velocidad
+  maxFwd: 220,     // px/s
+  maxRev: 140,     // px/s
+  accel: 520,      // px/s^2
+  brake: 900,      // px/s^2
+  drag: 0.88,      // fricción cuando no pulsas nada
+  turnRate: 2.8    // rad/s (pivot en el sitio)
 };
 
-const keys = { up:false, down:false, left:false, right:false, space:false, shift:false };
+const keys = { up:false, down:false, left:false, right:false, space:false };
 
 function resetPlane() {
   plane.x = 260;
@@ -30,7 +30,13 @@ function resetPlane() {
   plane.speed = 0;
 }
 
-// Evita que las flechas/espacio hagan scroll en la página
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function approach(cur, target, delta) {
+  if (cur < target) return Math.min(cur + delta, target);
+  return Math.max(cur - delta, target);
+}
+
+// Evita scroll del navegador con flechas/espacio
 window.addEventListener("keydown", (e) => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
 
@@ -39,7 +45,6 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "ArrowLeft") keys.left = true;
   if (e.code === "ArrowRight") keys.right = true;
   if (e.code === "Space") keys.space = true;
-  if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = true;
   if (e.code === "KeyR") resetPlane();
 }, { passive: false });
 
@@ -51,10 +56,9 @@ window.addEventListener("keyup", (e) => {
   if (e.code === "ArrowLeft") keys.left = false;
   if (e.code === "ArrowRight") keys.right = false;
   if (e.code === "Space") keys.space = false;
-  if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = false;
 }, { passive: false });
 
-// Click para coordenadas; Shift+Click para teletransportar
+// Click para ver coords (Shift+Click teletransporta)
 canvas.addEventListener("click", (e) => {
   const rect = canvas.getBoundingClientRect();
   const sx = (e.clientX - rect.left) / rect.width;
@@ -70,70 +74,72 @@ canvas.addEventListener("click", (e) => {
   }
 });
 
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function approach(current, target, delta) {
-  if (current < target) return Math.min(current + delta, target);
-  return Math.max(current - delta, target);
-}
-
-// Avión top-down (silhouette simple)
-function drawAirplane() {
+// Icono de avión simple (top-down) — nariz hacia arriba en coords locales
+function drawPlaneIcon() {
   ctx.save();
   ctx.translate(plane.x, plane.y);
   ctx.rotate(plane.heading);
 
-  // Escala
+  // Tamaño
   const s = 1.0;
 
-  // Colores
-  const fill = "#f6f7fb";
-  const stroke = "rgba(0,0,0,0.55)";
+  // Sombra suave para que destaque
+  ctx.beginPath();
+  ctx.ellipse(3, 3, 18, 10, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.20)";
+  ctx.fill();
 
+  // Fuselaje (cápsula)
+  ctx.beginPath();
+  ctx.moveTo(0, -26*s);     // nariz
+  ctx.quadraticCurveTo(9*s, -18*s, 9*s, -6*s);
+  ctx.lineTo(9*s, 18*s);
+  ctx.quadraticCurveTo(9*s, 26*s, 0, 26*s); // cola
+  ctx.quadraticCurveTo(-9*s, 26*s, -9*s, 18*s);
+  ctx.lineTo(-9*s, -6*s);
+  ctx.quadraticCurveTo(-9*s, -18*s, 0, -26*s);
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
   ctx.lineWidth = 2;
-
-  // Fuselaje + morro
-  ctx.beginPath();
-  ctx.moveTo(0, -26*s);       // punta
-  ctx.lineTo(7*s, -12*s);
-  ctx.lineTo(7*s, 18*s);
-  ctx.lineTo(0, 26*s);        // cola
-  ctx.lineTo(-7*s, 18*s);
-  ctx.lineTo(-7*s, -12*s);
-  ctx.closePath();
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.strokeStyle = stroke;
+  ctx.strokeStyle = "rgba(0,0,0,0.55)";
   ctx.stroke();
 
-  // Alas
+  // Alas (rect simple)
   ctx.beginPath();
-  ctx.moveTo(-28*s, -2*s);
-  ctx.lineTo(28*s, -2*s);
-  ctx.lineTo(22*s, 6*s);
-  ctx.lineTo(-22*s, 6*s);
-  ctx.closePath();
-  ctx.fillStyle = fill;
+  ctx.roundRect(-28*s, -2*s, 56*s, 10*s, 4*s);
+  ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.stroke();
 
-  // Estabilizador trasero
+  // Cola horizontal
   ctx.beginPath();
-  ctx.moveTo(-16*s, 18*s);
-  ctx.lineTo(16*s, 18*s);
-  ctx.lineTo(12*s, 24*s);
-  ctx.lineTo(-12*s, 24*s);
-  ctx.closePath();
-  ctx.fillStyle = fill;
+  ctx.roundRect(-18*s, 16*s, 36*s, 8*s, 4*s);
   ctx.fill();
   ctx.stroke();
 
-  // “Cabina” para dar dirección visual
+  // “Cabina” para ver claramente la nariz
   ctx.beginPath();
-  ctx.ellipse(0, -12*s, 4.5*s, 7*s, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.ellipse(0, -14*s, 5*s, 8*s, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.30)";
   ctx.fill();
 
   ctx.restore();
+}
+
+// Polyfill simple para roundRect si el navegador no lo soporta
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    const rr = Math.min(r, w/2, h/2);
+    this.beginPath();
+    this.moveTo(x+rr, y);
+    this.arcTo(x+w, y, x+w, y+h, rr);
+    this.arcTo(x+w, y+h, x, y+h, rr);
+    this.arcTo(x, y+h, x, y, rr);
+    this.arcTo(x, y, x+w, y, rr);
+    this.closePath();
+    return this;
+  };
 }
 
 let last = performance.now();
@@ -141,45 +147,35 @@ function loop(now) {
   const dt = (now - last) / 1000;
   last = now;
 
-  // === Velocidad (throttle/freno) ===
+  // 1) Pivotar sobre sí mismo (siempre permitido)
+  if (keys.left)  plane.heading -= plane.turnRate * dt;
+  if (keys.right) plane.heading += plane.turnRate * dt;
+
+  // 2) Velocidad objetivo según teclas
   let targetSpeed = 0;
   if (keys.up) targetSpeed = plane.maxFwd;
   if (keys.down) targetSpeed = -plane.maxRev;
 
-  // Freno fuerte con espacio
+  // 3) Frenar fuerte con espacio
   if (keys.space) {
     plane.speed = approach(plane.speed, 0, plane.brake * dt);
   } else {
-    // Acelera/decela hacia target
     plane.speed = approach(plane.speed, targetSpeed, plane.accel * dt);
 
-    // Fricción natural si no hay throttle
+    // fricción si no pulsas ni up ni down
     if (!keys.up && !keys.down) {
       plane.speed *= Math.pow(plane.drag, dt * 60);
-      if (Math.abs(plane.speed) < 0.6) plane.speed = 0;
+      if (Math.abs(plane.speed) < 0.7) plane.speed = 0;
     }
   }
 
-  // === Giro tipo “taxi” ===
-  // Sin SHIFT: casi no gira parado; gira más cuanto más velocidad tengas
-  const speedFactor = keys.shift
-    ? 1
-    : clamp(Math.abs(plane.speed) / 140, 0, 1); // 0..1
-
-  const canTurn = keys.shift || Math.abs(plane.speed) > 2;
-
-  if (canTurn) {
-    if (keys.left)  plane.heading -= plane.turnRate * speedFactor * dt;
-    if (keys.right) plane.heading += plane.turnRate * speedFactor * dt;
-  }
-
-  // === Movimiento (siempre en dirección del heading) ===
+  // 4) Mover SIEMPRE en dirección de la nariz (o en reverse, contrario)
   plane.x += Math.cos(plane.heading) * plane.speed * dt;
   plane.y += Math.sin(plane.heading) * plane.speed * dt;
 
-  // Límites
-  plane.x = Math.max(18, Math.min(WORLD_W - 18, plane.x));
-  plane.y = Math.max(18, Math.min(WORLD_H - 18, plane.y));
+  // Límites del mundo
+  plane.x = clamp(plane.x, 18, WORLD_W - 18);
+  plane.y = clamp(plane.y, 18, WORLD_H - 18);
 
   // Render
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -193,7 +189,7 @@ function loop(now) {
     ctx.fillText("Cargando plano...", 20, 30);
   }
 
-  drawAirplane();
+  drawPlaneIcon();
   requestAnimationFrame(loop);
 }
 
