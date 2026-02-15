@@ -45,9 +45,11 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "ArrowLeft") keys.left = true;
   if (e.code === "ArrowRight") keys.right = true;
   if (e.code === "Space") keys.space = true;
-    if (e.code === "KeyA") keys.a = true;
+
+  if (e.code === "KeyA") keys.a = true;
   if (e.code === "KeyD") keys.d = true;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = true;
+
   if (e.code === "KeyR") resetPlane();
 }, { passive: false });
 
@@ -59,10 +61,10 @@ window.addEventListener("keyup", (e) => {
   if (e.code === "ArrowLeft") keys.left = false;
   if (e.code === "ArrowRight") keys.right = false;
   if (e.code === "Space") keys.space = false;
-    if (e.code === "KeyA") keys.a = false;
+
+  if (e.code === "KeyA") keys.a = false;
   if (e.code === "KeyD") keys.d = false;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = false;
-
 }, { passive: false });
 
 // Click para ver coords (Shift+Click teletransporta)
@@ -81,30 +83,30 @@ canvas.addEventListener("click", (e) => {
   }
 });
 
-// Icono de avión simple (top-down) — nariz hacia arriba en coords locales
+// Icono de avión simple (top-down)
 function drawPlaneIcon() {
   ctx.save();
   ctx.translate(plane.x, plane.y);
+
   // Alinear la “nariz” del dibujo con el heading real
-const DRAW_ROT_OFFSET = Math.PI / 2;  // 90° (si quedara al revés, pon -Math.PI/2)
-ctx.rotate(plane.heading + DRAW_ROT_OFFSET);
+  const DRAW_ROT_OFFSET = Math.PI / 2; // si quedara al revés, pon -Math.PI/2
+  ctx.rotate(plane.heading + DRAW_ROT_OFFSET);
 
-// Tamaño x2
-const s = 2.0;
+  // Tamaño x2
+  const s = 2.0;
 
-
-  // Sombra suave para que destaque
+  // Sombra suave
   ctx.beginPath();
   ctx.ellipse(3, 3, 18, 10, 0, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(0,0,0,0.20)";
   ctx.fill();
 
-  // Fuselaje (cápsula)
+  // Fuselaje
   ctx.beginPath();
-  ctx.moveTo(0, -26*s);     // nariz
+  ctx.moveTo(0, -26*s);
   ctx.quadraticCurveTo(9*s, -18*s, 9*s, -6*s);
   ctx.lineTo(9*s, 18*s);
-  ctx.quadraticCurveTo(9*s, 26*s, 0, 26*s); // cola
+  ctx.quadraticCurveTo(9*s, 26*s, 0, 26*s);
   ctx.quadraticCurveTo(-9*s, 26*s, -9*s, 18*s);
   ctx.lineTo(-9*s, -6*s);
   ctx.quadraticCurveTo(-9*s, -18*s, 0, -26*s);
@@ -115,20 +117,20 @@ const s = 2.0;
   ctx.strokeStyle = "rgba(0,0,0,0.55)";
   ctx.stroke();
 
-  // Alas (rect simple)
+  // Alas
   ctx.beginPath();
   ctx.roundRect(-28*s, -2*s, 56*s, 10*s, 4*s);
   ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.stroke();
 
-  // Cola horizontal
+  // Cola
   ctx.beginPath();
   ctx.roundRect(-18*s, 16*s, 36*s, 8*s, 4*s);
   ctx.fill();
   ctx.stroke();
 
-  // “Cabina” para ver claramente la nariz
+  // Cabina
   ctx.beginPath();
   ctx.ellipse(0, -14*s, 5*s, 8*s, 0, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(0,0,0,0.30)";
@@ -137,7 +139,7 @@ const s = 2.0;
   ctx.restore();
 }
 
-// Polyfill simple para roundRect si el navegador no lo soporta
+// Polyfill roundRect
 if (!CanvasRenderingContext2D.prototype.roundRect) {
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
     const rr = Math.min(r, w/2, h/2);
@@ -157,18 +159,17 @@ function loop(now) {
   const dt = (now - last) / 1000;
   last = now;
 
-  // 1) Pivotar sobre sí mismo (siempre permitido)
- const turn = plane.turnRate * (keys.shift ? 0.35 : 1.0);
-if (keys.left)  plane.heading -= turn * dt;
-if (keys.right) plane.heading += turn * dt;
+  // 1) Pivotar sobre sí mismo (Shift = giro fino)
+  const turn = plane.turnRate * (keys.shift ? 0.35 : 1.0);
+  if (keys.left)  plane.heading -= turn * dt;
+  if (keys.right) plane.heading += turn * dt;
 
-
-  // 2) Velocidad objetivo según teclas
+  // 2) Velocidad objetivo (↑ / ↓)
   let targetSpeed = 0;
   if (keys.up) targetSpeed = plane.maxFwd;
   if (keys.down) targetSpeed = -plane.maxRev;
 
-  // 3) Frenar fuerte con espacio
+  // 3) Freno fuerte con espacio
   if (keys.space) {
     plane.speed = approach(plane.speed, 0, plane.brake * dt);
   } else {
@@ -181,16 +182,18 @@ if (keys.right) plane.heading += turn * dt;
     }
   }
 
-  // 4) Mover SIEMPRE en dirección de la nariz (o en reverse, contrario)
-  const lateralSpeed = 140; // ajusta a gusto
-let lat = 0;
-if (keys.a) lat -= lateralSpeed;
-if (keys.d) lat += lateralSpeed;
+  // 4) Movimiento longitudinal (nariz manda)  ✅ <-- ESTO FALTABA EN TU CÓDIGO
+  plane.x += Math.cos(plane.heading) * plane.speed * dt;
+  plane.y += Math.sin(plane.heading) * plane.speed * dt;
 
-// perpendicular al heading: izquierda/derecha
-plane.x += (-Math.sin(plane.heading)) * lat * dt;
-plane.y += ( Math.cos(plane.heading)) * lat * dt;
+  // 5) Movimiento lateral A/D
+  const lateralSpeed = 140;
+  let lat = 0;
+  if (keys.a) lat -= lateralSpeed;
+  if (keys.d) lat += lateralSpeed;
 
+  plane.x += (-Math.sin(plane.heading)) * lat * dt;
+  plane.y += ( Math.cos(plane.heading)) * lat * dt;
 
   // Límites del mundo
   plane.x = clamp(plane.x, 18, WORLD_W - 18);
