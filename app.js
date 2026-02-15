@@ -18,10 +18,10 @@ const plane = {
   accel: 520,      // px/s^2
   brake: 900,      // px/s^2
   drag: 0.88,      // fricción cuando no pulsas nada
-  turnRate: 2.8    // rad/s (pivot en el sitio)
+  turnRate: 1.3    // rad/s (pivot en el sitio)
 };
 
-const keys = { up:false, down:false, left:false, right:false, space:false };
+const keys = { up:false, down:false, left:false, right:false, space:false, a:false, d:false, shift:false };
 
 function resetPlane() {
   plane.x = 260;
@@ -45,6 +45,9 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "ArrowLeft") keys.left = true;
   if (e.code === "ArrowRight") keys.right = true;
   if (e.code === "Space") keys.space = true;
+    if (e.code === "KeyA") keys.a = true;
+  if (e.code === "KeyD") keys.d = true;
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = true;
   if (e.code === "KeyR") resetPlane();
 }, { passive: false });
 
@@ -56,6 +59,10 @@ window.addEventListener("keyup", (e) => {
   if (e.code === "ArrowLeft") keys.left = false;
   if (e.code === "ArrowRight") keys.right = false;
   if (e.code === "Space") keys.space = false;
+    if (e.code === "KeyA") keys.a = false;
+  if (e.code === "KeyD") keys.d = false;
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") keys.shift = false;
+
 }, { passive: false });
 
 // Click para ver coords (Shift+Click teletransporta)
@@ -151,8 +158,10 @@ function loop(now) {
   last = now;
 
   // 1) Pivotar sobre sí mismo (siempre permitido)
-  if (keys.left)  plane.heading -= plane.turnRate * dt;
-  if (keys.right) plane.heading += plane.turnRate * dt;
+ const turn = plane.turnRate * (keys.shift ? 0.35 : 1.0);
+if (keys.left)  plane.heading -= turn * dt;
+if (keys.right) plane.heading += turn * dt;
+
 
   // 2) Velocidad objetivo según teclas
   let targetSpeed = 0;
@@ -173,8 +182,15 @@ function loop(now) {
   }
 
   // 4) Mover SIEMPRE en dirección de la nariz (o en reverse, contrario)
-  plane.x += Math.cos(plane.heading) * plane.speed * dt;
-  plane.y += Math.sin(plane.heading) * plane.speed * dt;
+  const lateralSpeed = 140; // ajusta a gusto
+let lat = 0;
+if (keys.a) lat -= lateralSpeed;
+if (keys.d) lat += lateralSpeed;
+
+// perpendicular al heading: izquierda/derecha
+plane.x += (-Math.sin(plane.heading)) * lat * dt;
+plane.y += ( Math.cos(plane.heading)) * lat * dt;
+
 
   // Límites del mundo
   plane.x = clamp(plane.x, 18, WORLD_W - 18);
